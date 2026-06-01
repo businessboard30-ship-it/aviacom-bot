@@ -247,9 +247,7 @@ async def addgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     if not context.args:
         await update.message.reply_text(
-            "Usage: /addgroup <group_id>
-
-To get a group ID, forward a message from the group to @userinfobot"
+            "Usage: /addgroup <group_id>\n\nTo get a group ID, forward a message from the group to @userinfobot"
         )
         return
     group_id = context.args[0]
