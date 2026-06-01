@@ -192,19 +192,28 @@ async def sendad(update: Update, context: ContextTypes.DEFAULT_TYPE):
     all_chats = {**data.get("groups", {}), **data.get("channels", {})}
 
     for chat_id, info in all_chats.items():
-        if info.get("is_admin") and not info.get("left"):
-            try:
-                await context.bot.send_message(
-                    chat_id=int(chat_id),
-                    text=AD_TEXT,
-                    parse_mode="HTML",
-                    reply_markup=play_button()
-                )
-                sent += 1
-                await asyncio.sleep(0.5)  # avoid rate limits
-            except Exception as e:
+        if info.get("left"):
+            continue
+        try:
+            # Check if bot is actually admin before sending
+            member = await context.bot.get_chat_member(int(chat_id), context.bot.id)
+            if member.status not in ["administrator", "creator"]:
                 failed += 1
-                logger.error(f"Failed to send ad to {chat_id}: {e}")
+                continue
+            await context.bot.send_message(
+                chat_id=int(chat_id),
+                text=AD_TEXT,
+                parse_mode="HTML",
+                reply_markup=play_button()
+            )
+            # Mark as admin in data
+            info["is_admin"] = True
+            sent += 1
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            failed += 1
+            logger.error(f"Failed to send ad to {chat_id}: {e}")
+    save_data(data)
 
     await update.message.reply_text(
         f"📢 <b>Ad blast complete!</b>\n\n"
@@ -232,6 +241,37 @@ async def listgroups(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(msg, parse_mode="HTML")
 
+# ── /addgroup COMMAND (owner only) — manually add a group ID ──
+async def addgroup(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != OWNER_ID:
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Usage: /addgroup <group_id>
+
+To get a group ID, forward a message from the group to @userinfobot"
+        )
+        return
+    group_id = context.args[0]
+    data = load_data()
+    try:
+        chat = await context.bot.get_chat(int(group_id))
+        member = await context.bot.get_chat_member(int(group_id), context.bot.id)
+        is_admin = member.status in ["administrator", "creator"]
+        data["groups"][group_id] = {
+            "title": chat.title,
+            "id": int(group_id),
+            "type": chat.type,
+            "joined": datetime.now().isoformat(),
+            "is_admin": is_admin
+        }
+        save_data(data)
+        await update.message.reply_text(
+            f"✅ Added: {chat.title}\nAdmin: {'Yes' if is_admin else 'No'}"
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
 # ── MAIN ──
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
@@ -241,6 +281,7 @@ def main():
     app.add_handler(CommandHandler("stats", stats))
     app.add_handler(CommandHandler("sendad", sendad))
     app.add_handler(CommandHandler("listgroups", listgroups))
+    app.add_handler(CommandHandler("addgroup", addgroup))
     app.add_handler(ChatMemberHandler(track_chat_member, ChatMemberHandler.MY_CHAT_MEMBER))
 
     logger.info("AVIACOM Bot starting...")
