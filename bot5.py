@@ -212,7 +212,9 @@ async def sendad(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await asyncio.sleep(0.5)
         except Exception as e:
             failed += 1
-            logger.error(f"Failed to send ad to {chat_id}: {e}")
+            error_msg = str(e)
+            logger.error(f"Failed to send ad to {chat_id}: {error_msg}")
+            await update.message.reply_text(f"❌ Failed for {info.get('title','?')}: {error_msg}")
     save_data(data)
 
     await update.message.reply_text(
