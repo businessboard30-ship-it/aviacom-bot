@@ -46,9 +46,13 @@ def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-def play_button():
+def play_button(web_app=False):
+    if web_app:
+        return InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 PLAY AVIACOM NOW", web_app=WebAppInfo(url=GAME_URL))]
+        ])
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 PLAY AVIACOM NOW", web_app=WebAppInfo(url=GAME_URL))]
+        [InlineKeyboardButton("🚀 PLAY AVIACOM NOW", url=GAME_URL)]
     ])
 
 # ── BOT ADDED TO GROUP/CHANNEL ──
@@ -66,7 +70,7 @@ async def track_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = str(chat.id)
 
     # Bot was added
-    if new_status in ["member", "administrator"] and old_status in ["left", "kicked"]:
+    if new_status in ["member", "administrator", "creator"] and old_status in ["left", "kicked", "restricted"]:
         data[chat_type][chat_id] = {
             "title": chat.title,
             "id": chat.id,
@@ -143,7 +147,7 @@ async def play(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🎮 <b>Ready to play?</b>\n\nTap below to open the game!",
         parse_mode="HTML",
-        reply_markup=play_button()
+        reply_markup=play_button(web_app=True)
     )
 
 # ── /stats COMMAND (owner only) ──
